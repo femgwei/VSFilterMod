@@ -1637,6 +1637,7 @@ static bool OpenSubStationAlpha(CTextFile* file, CSimpleTextSubtitle& ret, int C
                 if(sver <= 4)	alpha = GetInt(buff);
                 style->charSet = GetInt(buff);
                 if(sver >= 6)	style->relativeTo = GetInt(buff);
+                style->lingSpacing = GetFloat(buff);
 
                 if(sver <= 4)	style->colors[2] = style->colors[3]; // style->colors[2] is used for drawing the outline
                 if(sver <= 4)	alpha = max(min(alpha, 0xff), 0);
@@ -1873,6 +1874,7 @@ static bool OpenXombieSub(CTextFile* file, CSimpleTextSubtitle& ret, int CharSet
                 style->marginRect.right = GetInt(buff);
                 style->marginRect.top = style->marginRect.bottom = GetInt(buff);
                 style->charSet = GetInt(buff);
+                style->lingSpacing = GetFloat(buff);
 
                 style->fontScaleX = max(style->fontScaleX, 0);
                 style->fontScaleY = max(style->fontScaleY, 0);
@@ -3282,6 +3284,7 @@ void STSStyle::SetDefault()
     fGaussianBlur = 0;
     fontShiftX = fontShiftY = fontAngleZ = fontAngleX = fontAngleY = 0;
     relativeTo = 2;
+    lingSpacing = 0;
 #ifdef _VSMOD
     // patch m001. Vertical fontspacing
     mod_verticalSpace = 0;
@@ -3316,6 +3319,7 @@ bool STSStyle::operator == (STSStyle& s)
            && fBlur == s.fBlur
            && fGaussianBlur == s.fGaussianBlur
            && relativeTo == s.relativeTo
+           && lingSpacing == s.lingSpacing
 #ifdef _VSMOD
            // patch m001. Vertical fontspacing
            && mod_verticalSpace == s.mod_verticalSpace
@@ -3377,6 +3381,7 @@ void STSStyle::mod_CopyStyleFrom(STSStyle& s)
     fBlur = s.fBlur;
     fGaussianBlur = s.fGaussianBlur;
     relativeTo = s.relativeTo;
+    lingSpacing = s.lingSpacing;
 
     //patch m001. Vertical fontspacing
     mod_verticalSpace = s.mod_verticalSpace;
@@ -3461,7 +3466,7 @@ LOGFONTW& operator <<= (LOGFONTW& lfw, STSStyle& s)
 
 CString& operator <<= (CString& style, STSStyle& s)
 {
-    style.Format(_T("%d;%d;%d;%d;%d;%d;%f;%f;%f;%f;0x%06x;0x%06x;0x%06x;0x%06x;0x%02x;0x%02x;0x%02x;0x%02x;%d;%s;%f;%f;%f;%f;%d;%d;%d;%d;%d;%f;%f;%f;%f;%d"),
+    style.Format(_T("%d;%d;%d;%d;%d;%d;%f;%f;%f;%f;0x%06x;0x%06x;0x%06x;0x%06x;0x%02x;0x%02x;0x%02x;0x%02x;%d;%s;%f;%f;%f;%f;%d;%d;%d;%d;%d;%f;%f;%f;%f;%d;%f"),
                  s.marginRect.left, s.marginRect.right, s.marginRect.top, s.marginRect.bottom,
                  s.scrAlignment, s.borderStyle,
                  s.outlineWidthX, s.outlineWidthY, s.shadowDepthX, s.shadowDepthY,
@@ -3473,7 +3478,7 @@ CString& operator <<= (CString& style, STSStyle& s)
                  s.fontSpacing, s.fontWeight,
                  (int)s.fItalic, (int)s.fUnderline, (int)s.fStrikeOut, s.fBlur, s.fGaussianBlur,
                  s.fontAngleZ, s.fontAngleX, s.fontAngleY,
-                 s.relativeTo);
+                 s.relativeTo, s.lingSpacing);
 
     return(style);
 }
@@ -3515,6 +3520,7 @@ STSStyle& operator <<= (STSStyle& s, CString& style)
             s.fontAngleX = GetFloat(str, ';');
             s.fontAngleY = GetFloat(str, ';');
             s.relativeTo = GetInt(str, ';');
+            s.lingSpacing = GetFloat(str, ';');
         }
     }
     catch(...)

@@ -112,6 +112,13 @@ CSRIAPI void csri_close(csri_inst *inst)
     delete inst;
 }
 
+CSRIAPI int csri_storage_size(csri_inst* inst, unsigned width, unsigned height)
+{
+    if (!inst) return -1;
+    inst->video_rect = CRect(0, 0, width, height);
+
+    return 0;
+}
 
 CSRIAPI int csri_request_fmt(csri_inst *inst, const struct csri_fmt *fmt)
 {
@@ -134,7 +141,10 @@ CSRIAPI int csri_request_fmt(csri_inst *inst, const struct csri_fmt *fmt)
         return -1;
     }
     inst->screen_res = CSize(fmt->width, fmt->height);
-    inst->video_rect = CRect(0, 0, fmt->width, fmt->height);
+    if (inst->video_rect.Width() == 0) {
+        inst->video_rect = CRect(0, 0, fmt->width, fmt->height);
+    }
+    
     return 0;
 }
 

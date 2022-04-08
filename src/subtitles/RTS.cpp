@@ -1249,6 +1249,7 @@ CSubtitle::CSubtitle()
     m_pClipper = NULL;
     m_clipInverse = false;
     m_scalex = m_scaley = 1;
+    lingSpacing = 0;
 }
 
 CSubtitle::~CSubtitle()
@@ -1536,6 +1537,7 @@ void CSubtitle::MakeLines(CSize size, CRect marginRect)
 
     CLine* l = NULL;
 
+    int num = 0;
     POSITION pos = m_words.GetHeadPosition();
     while(pos)
     {
@@ -1547,6 +1549,7 @@ void CSubtitle::MakeLines(CSize size, CRect marginRect)
             m_topborder = l->m_borderY;
             fFirstLine = false;
         }
+        l->m_ascent += lingSpacing * num++ * m_scaley * 8;
 
         spaceNeeded.cx = max(l->m_width + l->m_borderX, spaceNeeded.cx);
         spaceNeeded.cy += l->m_ascent + l->m_descent;
@@ -3190,6 +3193,7 @@ CSubtitle* CRenderedTextSubtitle::GetSubtitle(int entry)
     sub->m_wrapStyle = m_defaultWrapStyle;
     sub->m_fAnimated = false;
     sub->m_relativeTo = stss.relativeTo;
+    sub->lingSpacing = stss.lingSpacing;
     // this whole conditional is a work-around for what happens in STS.cpp:
     // in CSimpleTextSubtitle::Open, we have m_dstScreenSize = CSize(384, 288)
     // now, files containing embedded subtitles (and with styles) set m_dstScreenSize to a correct value
@@ -3197,8 +3201,8 @@ CSubtitle* CRenderedTextSubtitle::GetSubtitle(int entry)
     if(m_doOverrideStyle && m_pStyleOverride != NULL)
     {
         // so mind the default values, stated here to increase comprehension
-        sub->m_scalex = (stss.relativeTo == 1 ? m_vidrect.Width() : m_size.cx) / (384 * 8);
-        sub->m_scaley = (stss.relativeTo == 1 ? m_vidrect.Height() : m_size.cy) / (288 * 8);
+        sub->m_scalex = (stss.relativeTo == 1 ? m_vidrect.Width() : m_size.cx) / (384.0 * 8);
+        sub->m_scaley = (stss.relativeTo == 1 ? m_vidrect.Height() : m_size.cy) / (288.0 * 8);
     }
     else
     {
@@ -3260,12 +3264,15 @@ CSubtitle* CRenderedTextSubtitle::GetSubtitle(int entry)
 
         tmp = stss;
 
+        double blur_scalex = (m_dstScreenSize.cx * 8.0) / m_vidrect.Width();
+        double blur_scaley = (m_dstScreenSize.cy * 8.0) / m_vidrect.Height();
         tmp.fontSize = sub->m_scaley * tmp.fontSize * 64;
+        tmp.lingSpacing = sub->m_scaley * sub->lingSpacing * 8;
         tmp.fontSpacing = sub->m_scalex * tmp.fontSpacing * 64;
-        tmp.outlineWidthX *= (m_fScaledBAS ? sub->m_scalex : 1) * 8;
-        tmp.outlineWidthY *= (m_fScaledBAS ? sub->m_scaley : 1) * 8;
-        tmp.shadowDepthX *= (m_fScaledBAS ? sub->m_scalex : 1) * 8;
-        tmp.shadowDepthY *= (m_fScaledBAS ? sub->m_scaley : 1) * 8;
+        tmp.outlineWidthX *= (m_fScaledBAS ? sub->m_scalex : blur_scalex) * 8;
+        tmp.outlineWidthY *= (m_fScaledBAS ? sub->m_scaley : blur_scaley) * 8;
+        tmp.shadowDepthX *= (m_fScaledBAS ? sub->m_scalex : blur_scalex) * 8;
+        tmp.shadowDepthY *= (m_fScaledBAS ? sub->m_scaley : blur_scaley) * 8;
 
         if(m_nPolygon)
         {

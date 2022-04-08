@@ -5,6 +5,7 @@
 *.pydevproject
 .project
 .metadata
+.vs
 bin/
 tmp/
 *.tmp
@@ -45,6 +46,7 @@ local.properties
 
 [Dd]ebug/
 [Rr]elease/
+Win32/
 x64/
 build/
 [Bb]in/

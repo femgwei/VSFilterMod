@@ -254,6 +254,8 @@ extern "C" {
     CSRIAPI void csri_close(csri_inst *inst);
 
 
+    CSRIAPI int csri_storage_size(csri_inst* inst, unsigned width, unsigned height);
+
     /** query / set the image format and size.
      * \param inst the renderer instance handle
      * \param fmt the format and image size to be used
