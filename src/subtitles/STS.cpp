@@ -1637,7 +1637,7 @@ static bool OpenSubStationAlpha(CTextFile* file, CSimpleTextSubtitle& ret, int C
                 if(sver <= 4)	alpha = GetInt(buff);
                 style->charSet = GetInt(buff);
                 if(sver >= 6)	style->relativeTo = GetInt(buff);
-                style->lingSpacing = GetFloat(buff);
+                style->lineSpacing = GetFloat(buff);
 
                 if(sver <= 4)	style->colors[2] = style->colors[3]; // style->colors[2] is used for drawing the outline
                 if(sver <= 4)	alpha = max(min(alpha, 0xff), 0);
@@ -1874,7 +1874,7 @@ static bool OpenXombieSub(CTextFile* file, CSimpleTextSubtitle& ret, int CharSet
                 style->marginRect.right = GetInt(buff);
                 style->marginRect.top = style->marginRect.bottom = GetInt(buff);
                 style->charSet = GetInt(buff);
-                style->lingSpacing = GetFloat(buff);
+                style->lineSpacing = GetFloat(buff);
 
                 style->fontScaleX = max(style->fontScaleX, 0);
                 style->fontScaleY = max(style->fontScaleY, 0);
@@ -3284,7 +3284,7 @@ void STSStyle::SetDefault()
     fGaussianBlur = 0;
     fontShiftX = fontShiftY = fontAngleZ = fontAngleX = fontAngleY = 0;
     relativeTo = 2;
-    lingSpacing = 0;
+    lineSpacing = 0;
 #ifdef _VSMOD
     // patch m001. Vertical fontspacing
     mod_verticalSpace = 0;
@@ -3319,7 +3319,7 @@ bool STSStyle::operator == (STSStyle& s)
            && fBlur == s.fBlur
            && fGaussianBlur == s.fGaussianBlur
            && relativeTo == s.relativeTo
-           && lingSpacing == s.lingSpacing
+           && lineSpacing == s.lineSpacing
 #ifdef _VSMOD
            // patch m001. Vertical fontspacing
            && mod_verticalSpace == s.mod_verticalSpace
@@ -3381,7 +3381,7 @@ void STSStyle::mod_CopyStyleFrom(STSStyle& s)
     fBlur = s.fBlur;
     fGaussianBlur = s.fGaussianBlur;
     relativeTo = s.relativeTo;
-    lingSpacing = s.lingSpacing;
+    lineSpacing = s.lineSpacing;
 
     //patch m001. Vertical fontspacing
     mod_verticalSpace = s.mod_verticalSpace;
@@ -3478,7 +3478,7 @@ CString& operator <<= (CString& style, STSStyle& s)
                  s.fontSpacing, s.fontWeight,
                  (int)s.fItalic, (int)s.fUnderline, (int)s.fStrikeOut, s.fBlur, s.fGaussianBlur,
                  s.fontAngleZ, s.fontAngleX, s.fontAngleY,
-                 s.relativeTo, s.lingSpacing);
+                 s.relativeTo, s.lineSpacing);
 
     return(style);
 }
@@ -3520,7 +3520,7 @@ STSStyle& operator <<= (STSStyle& s, CString& style)
             s.fontAngleX = GetFloat(str, ';');
             s.fontAngleY = GetFloat(str, ';');
             s.relativeTo = GetInt(str, ';');
-            s.lingSpacing = GetFloat(str, ';');
+            s.lineSpacing = GetFloat(str, ';');
         }
     }
     catch(...)

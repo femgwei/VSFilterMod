@@ -191,7 +191,7 @@ public:
     bool m_clipInverse;
 
     double m_scalex, m_scaley;
-    double lingSpacing;
+    double lineSpacing;
 
 public:
     CSubtitle();

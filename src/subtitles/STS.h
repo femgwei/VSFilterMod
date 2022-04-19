@@ -162,7 +162,7 @@ public:
     double	fontAngleZ, fontAngleX, fontAngleY;
     double	fontShiftX, fontShiftY;
     int		relativeTo; // 0: window, 1: video, 2: undefined (~window)
-    double  lingSpacing;
+    double  lineSpacing;
 #ifdef _VSMOD
     // patch m001. Vertical fontspacing
     double  mod_verticalSpace;
