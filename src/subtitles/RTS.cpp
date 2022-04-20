@@ -1549,7 +1549,7 @@ void CSubtitle::MakeLines(CSize size, CRect marginRect)
             fFirstLine = false;
         }
         else {
-            int lineSpacing = 0;
+            int lineSpacing = INT_MIN;
             POSITION pos1 = l->GetHeadPosition();
             while (pos1)
             {
@@ -3281,7 +3281,6 @@ CSubtitle* CRenderedTextSubtitle::GetSubtitle(int entry)
         if (tmp.lineSpacing == 0) {
             tmp.lineSpacing = sub->lineSpacing;
         }
-        tmp.lineSpacing = tmp.lineSpacing;
         tmp.fontSpacing = sub->m_scalex * tmp.fontSpacing * 64;
         tmp.outlineWidthX *= (m_fScaledBAS ? sub->m_scalex : blur_scalex) * 8;
         tmp.outlineWidthY *= (m_fScaledBAS ? sub->m_scaley : blur_scaley) * 8;
