@@ -1559,7 +1559,10 @@ void CSubtitle::MakeLines(CSize size, CRect marginRect)
                     lineSpacing = tmp;
                 }
             }
-            l->m_ascent += lineSpacing;
+            if (lineSpacing != INT_MIN)
+            {
+                l->m_ascent += lineSpacing;
+            }
         }
 
         spaceNeeded.cx = max(l->m_width + l->m_borderX, spaceNeeded.cx);
