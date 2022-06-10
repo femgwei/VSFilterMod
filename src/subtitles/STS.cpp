@@ -1238,7 +1238,13 @@ CStringW GetStr(CStringW& buff, char sep = ',') //throw(...)
     }
 
     CStringW ret = buff.Left(pos);
-    if(pos < buff.GetLength()) buff = buff.Mid(pos + 1);
+    if (pos < buff.GetLength())
+    {
+        buff = buff.Mid(pos + 1);
+    }
+    else {
+        buff = L"";
+    }
 
     return(ret);
 }
@@ -1637,7 +1643,8 @@ static bool OpenSubStationAlpha(CTextFile* file, CSimpleTextSubtitle& ret, int C
                 if(sver <= 4)	alpha = GetInt(buff);
                 style->charSet = GetInt(buff);
                 if(sver >= 6)	style->relativeTo = GetInt(buff);
-                style->lineSpacing = GetFloat(buff);
+                if (buff.GetLength() > 0)
+                    style->lineSpacing = GetFloat(buff);
 
                 if(sver <= 4)	style->colors[2] = style->colors[3]; // style->colors[2] is used for drawing the outline
                 if(sver <= 4)	alpha = max(min(alpha, 0xff), 0);
@@ -1874,7 +1881,8 @@ static bool OpenXombieSub(CTextFile* file, CSimpleTextSubtitle& ret, int CharSet
                 style->marginRect.right = GetInt(buff);
                 style->marginRect.top = style->marginRect.bottom = GetInt(buff);
                 style->charSet = GetInt(buff);
-                style->lineSpacing = GetFloat(buff);
+                if (buff.GetLength() > 0)
+                    style->lineSpacing = GetFloat(buff);
 
                 style->fontScaleX = max(style->fontScaleX, 0);
                 style->fontScaleY = max(style->fontScaleY, 0);
@@ -3520,7 +3528,8 @@ STSStyle& operator <<= (STSStyle& s, CString& style)
             s.fontAngleX = GetFloat(str, ';');
             s.fontAngleY = GetFloat(str, ';');
             s.relativeTo = GetInt(str, ';');
-            s.lineSpacing = GetFloat(str, ';');
+            if (str.GetLength() > 0)
+                s.lineSpacing = GetFloat(str, ';');
         }
     }
     catch(...)
