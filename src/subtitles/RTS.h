@@ -37,7 +37,6 @@ class CPolygon;
 
 class CWord : public Rasterizer
 {
-    bool m_fDrawn;
     CPoint m_p;
 
     void Transform(CPoint org);
@@ -51,6 +50,7 @@ protected:
     virtual bool CreatePath() = 0;
 
 public:
+    bool m_fDrawn;
     bool m_fWhiteSpaceChar, m_fLineBreak;
 
     STSStyle m_style;
@@ -60,6 +60,8 @@ public:
     int m_ktype, m_kstart, m_kend;
 
     int m_width, m_ascent, m_descent;
+
+    int m_max_width = 0;
 
     CWord(STSStyle& style, CStringW str, int ktype, int kstart, int kend, double scalex, double scaley); // str[0] = 0 -> m_fLineBreak = true (in this case we only need and use the height of m_font from the whole class)
     virtual ~CWord();

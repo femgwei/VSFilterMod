@@ -121,11 +121,11 @@ void CWord::Paint(CPoint p, CPoint org)
 
         if(!ScanConvert()) return;
 
-        if(m_style.borderStyle == 0 && (m_style.outlineWidthX + m_style.outlineWidthY > 0))
+        if(m_style.borderStyle == 1 && (m_style.outlineWidthX + m_style.outlineWidthY > 0))
         {
             if(!CreateWidenedRegion((int)(m_style.outlineWidthX + 0.5), (int)(m_style.outlineWidthY + 0.5))) return;
         }
-        else if(m_style.borderStyle == 1)
+        else if(m_style.borderStyle == 3 || m_style.borderStyle == 4)
         {
             if(!CreateOpaqueBox()) return;
         }
@@ -517,6 +517,11 @@ bool CWord::CreateOpaqueBox()
 {
     if(m_pOpaqueBox) return(true);
 
+    int width = m_width;
+    if (m_max_width > 0)
+    {
+        width = m_max_width;
+    }
     STSStyle style = m_style;
     style.borderStyle = 0;
     style.outlineWidthX = style.outlineWidthY = 0;
@@ -529,8 +534,8 @@ bool CWord::CreateOpaqueBox()
     CStringW str;
     str.Format(L"m %d %d l %d %d %d %d %d %d",
                -w, -h,
-               m_width + w, -h,
-               m_width + w, m_ascent + m_descent + h,
+               width + w, -h,
+               width + w, m_ascent + m_descent + h,
                -w, m_ascent + m_descent + h);
 
     m_pOpaqueBox = DNew CPolygon(style, str, 0, 0, 0, 1.0 / 8, 1.0 / 8, 0);
@@ -1046,7 +1051,7 @@ CRect CLine::PaintShadow(SubPicDesc& spd, CRect& clipRect, BYTE* pAlphaMask, CPo
 #endif
             w->Paint(CPoint(x, y), org);
 
-            if(w->m_style.borderStyle == 0)
+            if(w->m_style.borderStyle == 1)
             {
 #ifdef _VSMOD // patch m004. gradient colors
                 bbox |= w->Draw(spd, clipRect, pAlphaMask, x, y, sw,
@@ -1058,7 +1063,7 @@ CRect CLine::PaintShadow(SubPicDesc& spd, CRect& clipRect, BYTE* pAlphaMask, CPo
                                 (w->m_style.outlineWidthX + w->m_style.outlineWidthY > 0) && !(w->m_ktype == 2 && time < w->m_kstart));
 #endif
             }
-            else if(w->m_style.borderStyle == 1 && w->m_pOpaqueBox)
+            else if((w->m_style.borderStyle == 3 || w->m_style.borderStyle == 4) && w->m_pOpaqueBox)
             {
 #ifdef _VSMOD // patch m004. gradient colors
                 bbox |= w->m_pOpaqueBox->Draw(spd, clipRect, pAlphaMask, x, y, sw, true, false, 3, w->m_style.mod_grad, mod_vc);
@@ -1098,8 +1103,16 @@ CRect CLine::PaintOutline(SubPicDesc& spd, CRect& clipRect, BYTE* pAlphaMask, CP
             int y = p.y + m_ascent - w->m_ascent;
 #endif
             DWORD aoutline = w->m_style.alpha[2];
+            if (w->m_style.borderStyle == 4)
+            {
+                aoutline = w->m_style.alpha[3];
+            }
             if(alpha > 0) aoutline += MulDiv(alpha, 0xff - w->m_style.alpha[2], 0xff);
             COLORREF outline = revcolor(w->m_style.colors[2]) | ((0xff - aoutline) << 24);
+            if (w->m_style.borderStyle == 4)
+            {
+                outline = revcolor(w->m_style.colors[3]) | ((0xff - aoutline) << 24);
+            }
             DWORD sw[6] = {outline, -1};
 
 #ifdef _VSMOD // patch m011. jitter
@@ -1115,7 +1128,7 @@ CRect CLine::PaintOutline(SubPicDesc& spd, CRect& clipRect, BYTE* pAlphaMask, CP
 
             w->Paint(CPoint(x, y), org);
 
-            if(w->m_style.borderStyle == 0)
+            if(w->m_style.borderStyle == 1)
             {
 #ifdef _VSMOD // patch m004. gradient colors
                 bbox |= w->Draw(spd, clipRect, pAlphaMask, x, y, sw, !w->m_style.alpha[0] && !w->m_style.alpha[1] && !alpha, true, 2, w->m_style.mod_grad, mod_vc);
@@ -1123,7 +1136,7 @@ CRect CLine::PaintOutline(SubPicDesc& spd, CRect& clipRect, BYTE* pAlphaMask, CP
                 bbox |= w->Draw(spd, clipRect, pAlphaMask, x, y, sw, !w->m_style.alpha[0] && !w->m_style.alpha[1] && !alpha, true);
 #endif
             }
-            else if(w->m_style.borderStyle == 1 && w->m_pOpaqueBox)
+            else if((w->m_style.borderStyle == 3 || w->m_style.borderStyle == 4) && w->m_pOpaqueBox)
             {
 #ifdef _VSMOD // patch m004. gradient colors
                 bbox |= w->m_pOpaqueBox->Draw(spd, clipRect, pAlphaMask, x, y, sw, true, false, 2, w->m_style.mod_grad, mod_vc);
@@ -3779,6 +3792,7 @@ STDMETHODIMP CRenderedTextSubtitle::Render(SubPicDesc& spd, REFERENCE_TIME rt, d
                 }
                 else mod_vc.pos = vcpos2;
                 mod_vc.enable = true;
+                mod_vc.isInverse = s->m_pClipper ? s->m_pClipper->m_inverse : false;
             }
 #endif
             break;
@@ -3809,14 +3823,64 @@ STDMETHODIMP CRenderedTextSubtitle::Render(SubPicDesc& spd, REFERENCE_TIME rt, d
         iclipRect[2] = CRect(clipRect.right, clipRect.top, spd.w, clipRect.bottom);
         iclipRect[3] = CRect(0, clipRect.bottom, spd.w, spd.h);
 
+        LONG minX = LONG_MAX;
+        int maxWidth = 0;
+        CWord* tailWord = s->GetTail()->GetTail();
+        STSStyle lastStyle = tailWord->m_style;
+        bool maxShadow = lastStyle.borderStyle == 4;
+        
+        pos = s->GetHeadPosition();
+        while (pos)
+        {
+            CLine* l = s->GetNext(pos);
+            POSITION pos1 = l->GetHeadPosition();
+            while (pos1)
+            {
+                CWord* w = l->GetNext(pos1);
+                LONG x = (s->m_scrAlignment % 3) == 1 ? org.x
+                    : (s->m_scrAlignment % 3) == 0 ? org.x - l->m_width
+                    : org.x - (l->m_width / 2);
+                if (x < minX) {
+                    minX = x;
+                }
+                if (l->m_width > maxWidth)
+                {
+                    maxWidth = l->m_width;
+                }
+                if (maxShadow)
+                {
+                    w->m_style.borderStyle = 4;
+                    w->m_style.alpha[3] = lastStyle.alpha[3];
+                    w->m_style.colors[3] = lastStyle.colors[3];
+                }
+                else if (w->m_style.borderStyle == 4)
+                {
+                    w->m_style.borderStyle = 1;
+                }
+            }
+        }
+        
         pos = s->GetHeadPosition();
         while(pos)
         {
             CLine* l = s->GetNext(pos);
 
-            p.x = (s->m_scrAlignment % 3) == 1 ? org.x
-                  : (s->m_scrAlignment % 3) == 0 ? org.x - l->m_width
-                  :							   org.x - (l->m_width / 2);
+            if (maxShadow)
+            {
+                p.x = minX;
+                POSITION pos1 = l->GetHeadPosition();
+                while (pos1)
+                {
+                    CWord* w = l->GetNext(pos1);
+                    w->m_max_width = maxWidth;
+                }
+            }
+            else
+            {
+                p.x = (s->m_scrAlignment % 3) == 1 ? org.x
+                    : (s->m_scrAlignment % 3) == 0 ? org.x - l->m_width
+                    : org.x - (l->m_width / 2);
+            }
 
 #ifdef _VSMOD // patch m006. moveable vector clip
             if(s->m_clipInverse)
@@ -3853,9 +3917,22 @@ STDMETHODIMP CRenderedTextSubtitle::Render(SubPicDesc& spd, REFERENCE_TIME rt, d
         {
             CLine* l = s->GetNext(pos);
 
-            p.x = (s->m_scrAlignment % 3) == 1 ? org.x
-                  : (s->m_scrAlignment % 3) == 0 ? org.x - l->m_width
-                  :							   org.x - (l->m_width / 2);
+            if (maxShadow)
+            {
+                p.x = minX;
+                POSITION pos1 = l->GetHeadPosition();
+                while (pos1)
+                {
+                    CWord* w = l->GetNext(pos1);
+                    w->m_max_width = maxWidth;
+                }
+            }
+            else
+            {
+                p.x = (s->m_scrAlignment % 3) == 1 ? org.x
+                    : (s->m_scrAlignment % 3) == 0 ? org.x - l->m_width
+                    : org.x - (l->m_width / 2);
+            }
 
 #ifdef _VSMOD // patch m006. moveable vector clip
             if(s->m_clipInverse)
@@ -3883,6 +3960,101 @@ STDMETHODIMP CRenderedTextSubtitle::Render(SubPicDesc& spd, REFERENCE_TIME rt, d
             }
 #endif
             p.y += l->m_ascent + l->m_descent;
+        }
+
+        if (maxShadow)
+        {
+            CPoint pm = p2;
+            pos = s->GetHeadPosition();
+            while (pos)
+            {
+                CLine* l = s->GetNext(pos);
+                pm.x = (s->m_scrAlignment % 3) == 1 ? org.x
+                    : (s->m_scrAlignment % 3) == 0 ? org.x - l->m_width
+                    : org.x - (l->m_width / 2);
+                POSITION pos1 = l->GetHeadPosition();
+                while (pos1)
+                {
+                    CWord* w = l->GetNext(pos1);
+                    w->m_style.borderStyle = 1;
+                    w->m_max_width = 0;
+                    w->m_fDrawn = false;
+                }
+
+#ifdef _VSMOD // patch m006. moveable vector clip
+                if (s->m_clipInverse)
+                {
+                    l->PaintShadow(spd, iclipRect[0], pAlphaMask, pm, org2, m_time, alpha, mod_vc, rt);
+                    l->PaintShadow(spd, iclipRect[1], pAlphaMask, pm, org2, m_time, alpha, mod_vc, rt);
+                    l->PaintShadow(spd, iclipRect[2], pAlphaMask, pm, org2, m_time, alpha, mod_vc, rt);
+                    l->PaintShadow(spd, iclipRect[3], pAlphaMask, pm, org2, m_time, alpha, mod_vc, rt);
+                }
+                else
+                {
+                    l->PaintShadow(spd, clipRect, pAlphaMask, pm, org2, m_time, alpha, mod_vc, rt);
+                }
+#else
+                if (s->m_clipInverse)
+                {
+                    l->PaintShadow(spd, iclipRect[0], pAlphaMask, pm, org2, m_time, alpha);
+                    l->PaintShadow(spd, iclipRect[1], pAlphaMask, pm, org2, m_time, alpha);
+                    l->PaintShadow(spd, iclipRect[2], pAlphaMask, pm, org2, m_time, alpha);
+                    l->PaintShadow(spd, iclipRect[3], pAlphaMask, pm, org2, m_time, alpha);
+                }
+                else
+                {
+                    l->PaintShadow(spd, clipRect, pAlphaMask, pm, org2, m_time, alpha);
+                }
+#endif
+
+                pm.y += l->m_ascent + l->m_descent;
+            }
+
+            pm = p2;
+            pos = s->GetHeadPosition();
+            while (pos)
+            {
+                CLine* l = s->GetNext(pos);
+                pm.x = (s->m_scrAlignment % 3) == 1 ? org.x
+                    : (s->m_scrAlignment % 3) == 0 ? org.x - l->m_width
+                    : org.x - (l->m_width / 2);
+                POSITION pos1 = l->GetHeadPosition();
+                while (pos1)
+                {
+                    CWord* w = l->GetNext(pos1);
+                    w->m_style.borderStyle = 1;
+                    w->m_max_width = 0;
+                    w->m_fDrawn = false;
+                }
+
+#ifdef _VSMOD // patch m006. moveable vector clip
+                if (s->m_clipInverse)
+                {
+                    l->PaintOutline(spd, iclipRect[0], pAlphaMask, pm, org2, m_time, alpha, mod_vc, rt);
+                    l->PaintOutline(spd, iclipRect[1], pAlphaMask, pm, org2, m_time, alpha, mod_vc, rt);
+                    l->PaintOutline(spd, iclipRect[2], pAlphaMask, pm, org2, m_time, alpha, mod_vc, rt);
+                    l->PaintOutline(spd, iclipRect[3], pAlphaMask, pm, org2, m_time, alpha, mod_vc, rt);
+                }
+                else
+                {
+                    l->PaintOutline(spd, clipRect, pAlphaMask, pm, org2, m_time, alpha, mod_vc, rt);
+                }
+#else
+                if (s->m_clipInverse)
+                {
+                    l->PaintOutline(spd, iclipRect[0], pAlphaMask, pm, org2, m_time, alpha);
+                    l->PaintOutline(spd, iclipRect[1], pAlphaMask, pm, org2, m_time, alpha);
+                    l->PaintOutline(spd, iclipRect[2], pAlphaMask, pm, org2, m_time, alpha);
+                    l->PaintOutline(spd, iclipRect[3], pAlphaMask, pm, org2, m_time, alpha);
+                }
+                else
+                {
+                    l->PaintOutline(spd, clipRect, pAlphaMask, pm, org2, m_time, alpha);
+                }
+#endif
+
+                pm.y += l->m_ascent + l->m_descent;
+            }
         }
 
         p = p2;
