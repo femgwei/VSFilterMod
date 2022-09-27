@@ -3825,9 +3825,15 @@ STDMETHODIMP CRenderedTextSubtitle::Render(SubPicDesc& spd, REFERENCE_TIME rt, d
 
         LONG minX = LONG_MAX;
         int maxWidth = 0;
-        CWord* tailWord = s->GetTail()->GetTail();
-        STSStyle lastStyle = tailWord->m_style;
-        bool maxShadow = lastStyle.borderStyle == 4;
+        bool maxShadow = false;
+        STSStyle lastStyle;
+        if (!s->IsEmpty() && !s->GetTail()->IsEmpty())
+        {
+            CWord* tailWord = s->GetTail()->GetTail();
+            lastStyle = tailWord->m_style;
+            maxShadow = lastStyle.borderStyle == 4;
+        }
+
         
         pos = s->GetHeadPosition();
         while (pos)
