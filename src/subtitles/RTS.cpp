@@ -23,7 +23,20 @@
 #include <cmath>
 #include <math.h>
 #include <time.h>
+#include <dwrite.h>
 #include "RTS.h"
+
+#define FALLBACK_DEFAULT_FONT L"Microsoft YaHei"
+
+ // SafeRelease inline function.
+template <class T> inline void SafeRelease(T** ppT)
+{
+    if (*ppT)
+    {
+        (*ppT)->Release();
+        *ppT = NULL;
+    }
+}
 
 // WARNING: this isn't very thread safe, use only one RTS a time.
 static HDC g_hDC;
@@ -51,6 +64,46 @@ CMyFont::CMyFont(STSStyle& style)
 #ifdef _VSMOD // patch m007. symbol rotating
     lf.lfOrientation = (LONG)style.mod_fontOrient;
 #endif
+
+
+    IDWriteFactory* g_pDWriteFactory = NULL;
+    IDWriteGdiInterop* g_pGdiInterop = NULL;
+
+    // DirectWrite variables.
+    IDWriteFont* pFont = NULL;
+
+    HRESULT hr = S_OK;
+
+    // Create the DirectWrite factory.
+    hr = DWriteCreateFactory(
+        DWRITE_FACTORY_TYPE_SHARED,
+        __uuidof(IDWriteFactory),
+        reinterpret_cast<IUnknown**>(&g_pDWriteFactory)
+    );
+
+    // Create a GDI interop interface.
+    if (SUCCEEDED(hr))
+    {
+        hr = g_pDWriteFactory->GetGdiInterop(&g_pGdiInterop);
+    }
+
+    // Convert to a DirectWrite font.
+    if (SUCCEEDED(hr))
+    {
+        hr = g_pGdiInterop->CreateFontFromLOGFONT(&lf, &pFont);
+    }
+
+    if (FAILED(hr))
+    {
+        // 字体不存在
+        wcscpy(lf.lfFaceName, FALLBACK_DEFAULT_FONT);
+    }
+
+    // Clean up local interfaces.
+    SafeRelease(&pFont);
+    SafeRelease(&g_pGdiInterop);
+    SafeRelease(&g_pDWriteFactory);
+
 
     if(!CreateFontIndirect(&lf))
     {
@@ -3291,17 +3344,15 @@ CSubtitle* CRenderedTextSubtitle::GetSubtitle(int entry)
 
         tmp = stss;
 
-        double blur_scalex = (m_dstScreenSize.cx * 8.0) / m_vidrect.Width();
-        double blur_scaley = (m_dstScreenSize.cy * 8.0) / m_vidrect.Height();
         tmp.fontSize = sub->m_scaley * tmp.fontSize * 64;
         if (tmp.lineSpacing == 0) {
             tmp.lineSpacing = sub->lineSpacing;
         }
         tmp.fontSpacing = sub->m_scalex * tmp.fontSpacing * 64;
-        tmp.outlineWidthX *= (m_fScaledBAS ? sub->m_scalex : blur_scalex) * 8;
-        tmp.outlineWidthY *= (m_fScaledBAS ? sub->m_scaley : blur_scaley) * 8;
-        tmp.shadowDepthX *= (m_fScaledBAS ? sub->m_scalex : blur_scalex) * 8;
-        tmp.shadowDepthY *= (m_fScaledBAS ? sub->m_scaley : blur_scaley) * 8;
+        tmp.outlineWidthX *= (m_fScaledBAS ? sub->m_scalex : 1.0) * 8;
+        tmp.outlineWidthY *= (m_fScaledBAS ? sub->m_scaley : 1.0) * 8;
+        tmp.shadowDepthX *= (m_fScaledBAS ? sub->m_scalex : 1.0) * 8;
+        tmp.shadowDepthY *= (m_fScaledBAS ? sub->m_scaley : 1.0) * 8;
 
         if(m_nPolygon)
         {
