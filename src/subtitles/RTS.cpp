@@ -24,19 +24,9 @@
 #include <math.h>
 #include <time.h>
 #include <dwrite.h>
+#include "GdiTextRenderer.h"
 #include "RTS.h"
 
-#define FALLBACK_DEFAULT_FONT L"Microsoft YaHei"
-
- // SafeRelease inline function.
-template <class T> inline void SafeRelease(T** ppT)
-{
-    if (*ppT)
-    {
-        (*ppT)->Release();
-        *ppT = NULL;
-    }
-}
 
 // WARNING: this isn't very thread safe, use only one RTS a time.
 static HDC g_hDC;
@@ -51,7 +41,7 @@ static long revcolor(long c)
 
 // CMyFont
 
-CMyFont::CMyFont(STSStyle& style)
+CMyFont::CMyFont(STSStyle& style, CStringW word)
 {
     LOGFONT lf;
     memset(&lf, 0, sizeof(lf));
@@ -67,7 +57,10 @@ CMyFont::CMyFont(STSStyle& style)
 
 
     IDWriteFactory* g_pDWriteFactory = NULL;
+    IDWriteTextFormat* g_pTextFormat = NULL;
     IDWriteGdiInterop* g_pGdiInterop = NULL;
+    IDWriteTextLayout* g_pTextLayout = NULL;
+    IDWriteTextRenderer* g_pGdiTextRenderer = NULL;
 
     // DirectWrite variables.
     IDWriteFont* pFont = NULL;
@@ -96,13 +89,69 @@ CMyFont::CMyFont(STSStyle& style)
     if (FAILED(hr))
     {
         // 字体不存在
-        wcscpy(lf.lfFaceName, FALLBACK_DEFAULT_FONT);
+        hr = g_pDWriteFactory->CreateTextFormat(
+            style.fontName,                // Font family name.
+            NULL,
+            DWRITE_FONT_WEIGHT_MEDIUM, DWRITE_FONT_STYLE_NORMAL,
+            DWRITE_FONT_STRETCH_NORMAL, 1.0f, L"",
+            &g_pTextFormat
+        );
+        uint32_t codepoint = 0;
+        if (SUCCEEDED(hr) && word.GetLength() > 0)
+        {
+            WCHAR* char_string = (LPWSTR)(LPCWSTR) word.GetString();
+            codepoint = char_string[0];
+            hr = g_pDWriteFactory->CreateTextLayout(
+                char_string,
+                word.GetLength(),
+                g_pTextFormat,
+                0.0f, 0.0f,
+                &g_pTextLayout
+            );
+        }
+
+        if (codepoint > 0 && SUCCEEDED(hr))
+        {
+            // Initialize the custom renderer class.
+            g_pGdiTextRenderer = new (std::nothrow) GdiTextRenderer(g_pDWriteFactory);
+
+            IDWriteFont* font = NULL;
+            hr = g_pTextLayout->Draw(&font, g_pGdiTextRenderer, 0.0f, 0.0f);
+            if (SUCCEEDED(hr) && font != NULL) {
+                BOOL exists = FALSE;
+                IDWriteLocalizedStrings* familyNames = NULL;
+                hr = font->HasCharacter(codepoint, &exists);
+                if (SUCCEEDED(hr) && exists) {
+                    // Now, just extract the first family name
+                    hr = font->GetInformationalStrings(
+                        DWRITE_INFORMATIONAL_STRING_WIN32_FAMILY_NAMES,
+                        &familyNames, &exists);
+                }
+
+                UINT32 length = 0;
+                if (SUCCEEDED(hr) && exists) {
+                    hr = familyNames->GetStringLength(0, &length);
+                }
+
+                if (SUCCEEDED(hr) && exists)
+                {
+                    hr = familyNames->GetString(0, lf.lfFaceName, length + 1);
+                }
+
+                SafeRelease(&familyNames);
+            }
+            SafeRelease(&font);
+        }
+        
     }
 
     // Clean up local interfaces.
     SafeRelease(&pFont);
+    SafeRelease(&g_pTextFormat);
+    SafeRelease(&g_pTextLayout);
     SafeRelease(&g_pGdiInterop);
     SafeRelease(&g_pDWriteFactory);
+    SafeRelease(&g_pGdiTextRenderer);
 
 
     if(!CreateFontIndirect(&lf))
@@ -135,7 +184,7 @@ CWord::CWord(STSStyle& style, CStringW str, int ktype, int kstart, int kend, dou
         m_fWhiteSpaceChar = m_fLineBreak = true;
     }
 
-    CMyFont font(m_style);
+    CMyFont font(m_style, str);
     m_ascent = (int)(m_style.fontScaleY / 100 * font.m_ascent);
     m_descent = (int)(m_style.fontScaleY / 100 * font.m_descent);
     m_width = 0;
@@ -606,7 +655,7 @@ CText::CText(STSStyle& style, CStringW str, int ktype, int kstart, int kend, dou
         m_fWhiteSpaceChar = true;
     }
 
-    CMyFont font(m_style);
+    CMyFont font(m_style, str);
 
     HFONT hOldFont = SelectFont(g_hDC, font);
 
@@ -667,7 +716,7 @@ bool CText::Append(CWord* w)
 
 bool CText::CreatePath()
 {
-    CMyFont font(m_style);
+    CMyFont font(m_style, this->m_str);
 
     HFONT hOldFont = SelectFont(g_hDC, font);
 

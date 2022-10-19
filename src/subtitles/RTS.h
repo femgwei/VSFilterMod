@@ -30,7 +30,7 @@ class CMyFont : public CFont
 public:
     int m_ascent, m_descent;
 
-    CMyFont(STSStyle& style);
+    CMyFont(STSStyle& style, CStringW word);
 };
 
 class CPolygon;

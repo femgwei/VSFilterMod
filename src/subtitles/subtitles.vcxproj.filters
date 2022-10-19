@@ -68,6 +68,9 @@
     <ClCompile Include="VobSubImage.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="GdiTextRenderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BaseSub.h">
@@ -128,6 +131,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="VobSubImage.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GdiTextRenderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
