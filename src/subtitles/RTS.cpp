@@ -27,6 +27,7 @@
 #include "GdiTextRenderer.h"
 #include "RTS.h"
 
+#define FALLBACK_DEFAULT_FONT L"Arial"
 
 // WARNING: this isn't very thread safe, use only one RTS a time.
 static HDC g_hDC;
@@ -90,7 +91,7 @@ CMyFont::CMyFont(STSStyle& style, CStringW word)
     {
         // 字体不存在
         hr = g_pDWriteFactory->CreateTextFormat(
-            style.fontName,                // Font family name.
+            FALLBACK_DEFAULT_FONT,
             NULL,
             DWRITE_FONT_WEIGHT_MEDIUM, DWRITE_FONT_STYLE_NORMAL,
             DWRITE_FONT_STRETCH_NORMAL, 1.0f, L"",
