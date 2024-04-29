@@ -935,7 +935,7 @@ bool CPolygon::ParseStr()
 
     for(i = 0; i < m_pathTypesOrg.GetCount(); i++)
     {
-        m_pathPointsOrg[i].x = (int)(m_scaley * m_pathPointsOrg[i].x);
+        m_pathPointsOrg[i].x = (int)(m_scalex * m_pathPointsOrg[i].x);
         m_pathPointsOrg[i].y = (int)(m_scaley * m_pathPointsOrg[i].y);
         if(minx > m_pathPointsOrg[i].x) minx = m_pathPointsOrg[i].x;
         if(miny > m_pathPointsOrg[i].y) miny = m_pathPointsOrg[i].y;
