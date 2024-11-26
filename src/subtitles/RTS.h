@@ -52,6 +52,7 @@ protected:
 public:
     bool m_fDrawn;
     bool m_fWhiteSpaceChar, m_fLineBreak;
+    bool m_isCJT;
 
     STSStyle m_style;
 

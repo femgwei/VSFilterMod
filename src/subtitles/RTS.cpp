@@ -38,6 +38,36 @@ static long revcolor(long c)
     return ((c & 0xff0000) >> 16) + (c & 0xff00) + ((c & 0xff) << 16);
 }
 
+static bool is_chinese_unicode(WCHAR wc) {
+    if ((wc >= 0x4E00 && wc <= 0x9FFF) || // 常用汉字
+        (wc >= 0x3400 && wc <= 0x4DBF) || // 扩展汉字
+        (wc >= 0x20000 && wc <= 0x2A6DF)) { // 拓展汉字B，超出范围需注意
+        return true;
+    }
+    return false;
+}
+
+static bool is_japanese_unicode(WCHAR wc) {
+    if ((wc >= 0x3040 && wc <= 0x309F) || // 平假名
+        (wc >= 0x30A0 && wc <= 0x30FF) || // 片假名
+        (wc >= 0x4E00 && wc <= 0x9FFF) || // 汉字（与中文重叠）
+        (wc >= 0xFF66 && wc <= 0xFF9D)) { // 半角片假名
+        return true;
+    }
+    return false;
+}
+
+static bool is_thai_unicode(WCHAR wc) {
+    if (wc >= 0x0E00 && wc <= 0x0E7F) {
+        return true;
+    }
+    return false;
+}
+
+static bool is_cjt(WCHAR wc) {
+    return is_chinese_unicode(wc) || is_japanese_unicode(wc) || is_thai_unicode(wc);
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 
 // CMyFont
@@ -185,6 +215,14 @@ CWord::CWord(STSStyle& style, CStringW str, int ktype, int kstart, int kend, dou
         m_fWhiteSpaceChar = m_fLineBreak = true;
     }
 
+    m_isCJT = true;
+    for (int i = 0; i < m_str.GetLength(); ++i) {
+        if (!is_cjt(m_str[i])) {
+            m_isCJT = false;
+            break;
+        }
+    }
+
     CMyFont font(m_style, str);
     m_ascent = (int)(m_style.fontScaleY / 100 * font.m_ascent);
     m_descent = (int)(m_style.fontScaleY / 100 * font.m_descent);
@@ -203,6 +241,7 @@ bool CWord::Append(CWord* w)
        || w->m_kstart != w->m_kend || m_ktype != w->m_ktype) return(false);
 
     m_fWhiteSpaceChar = m_fWhiteSpaceChar && w->m_fWhiteSpaceChar;
+    m_isCJT = m_isCJT && w->m_isCJT;
     m_str += w->m_str;
     m_width += w->m_width;
 
@@ -1496,7 +1535,8 @@ CLine* CSubtitle::GetNextLine(POSITION& pos, int maxwidth)
         while(pos2)
         {
             if(m_words.GetAt(pos2)->m_fWhiteSpaceChar != fWSC
-               || m_words.GetAt(pos2)->m_fLineBreak) break;
+               || m_words.GetAt(pos2)->m_fLineBreak
+               || m_words.GetAt(pos2)->m_isCJT) break;
 
             CWord* w2 = m_words.GetNext(pos2);
             width += w2->m_width;
@@ -1953,7 +1993,9 @@ void CRenderedTextSubtitle::ParseString(CSubtitle* sub, CStringW str, STSStyle& 
     {
         WCHAR c = str[j];
 
-        if(c != '\n' && c != ' ' && c != '\x00A0' && c != 0)
+        bool isCJT = is_cjt(c);
+
+        if(c != '\n' && c != ' ' && c != '\x00A0' && c != 0 && !isCJT)
             continue;
 
         if(i < j)
@@ -1973,7 +2015,7 @@ void CRenderedTextSubtitle::ParseString(CSubtitle* sub, CStringW str, STSStyle& 
                 m_kstart = m_kend;
             }
         }
-        else if(c == ' ' || c == '\x00A0')
+        else if(c == ' ' || c == '\x00A0' || isCJT)
         {
             if(CWord* w = DNew CText(style, CStringW(c), m_ktype, m_kstart, m_kend, sub->m_scalex, sub->m_scaley))
             {
